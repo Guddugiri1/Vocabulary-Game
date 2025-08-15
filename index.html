@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vocabulary Match — Geometry Edition</title>
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Custom fonts and subtle background pattern */
+      @import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@400;600&display=swap");
+      :root {
+        --bg1: #0f172a; /* slate-900 */
+        --bg2: #111827; /* gray-900 */
+        --card: rgba(255, 255, 255, 0.08);
+        --glass: rgba(255, 255, 255, 0.06);
+        --ring: rgba(255, 255, 255, 0.18);
+      }
+      body {
+        background: radial-gradient(
+            1200px 800px at 10% 0%,
+            #1e293b 0%,
+            var(--bg1) 40%,
+            var(--bg2) 100%
+          ),
+          conic-gradient(
+            from 180deg at 80% 10%,
+            #0ea5e9 0%,
+            transparent 20%,
+            #a78bfa 30%,
+            transparent 50%,
+            #22d3ee 60%,
+            transparent 80%,
+            #f472b6 100%
+          );
+        background-blend-mode: soft-light, normal;
+        min-height: 100vh;
+        font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto,
+          Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        color: #eef2ff;
+      }
+      .title-font {
+        font-family: "Outfit", system-ui, sans-serif;
+      }
+      .glass {
+        background: var(--glass);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--ring);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35),
+          inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+      }
+      .btn {
+        transition: transform 0.1s ease, filter 0.2s ease, background 0.2s ease;
+      }
+      .btn:active {
+        transform: translateY(1px) scale(0.99);
+      }
+      .chip {
+        border: 1px dashed rgba(255, 255, 255, 0.2);
+        transition: all 0.2s ease;
+      }
+      .chip:hover {
+        transform: translateY(-2px);
+      }
+      .chip.selected {
+        border-style: solid;
+        border-color: #fef08a;
+        box-shadow: 0 6px 20px rgba(250, 204, 21, 0.25);
+      }
+      .chip.correct {
+        border-color: #34d399;
+        background: rgba(16, 185, 129, 0.15);
+      }
+      .chip.wrong {
+        border-color: #fb7185;
+        background: rgba(244, 63, 94, 0.15);
+      }
+      .definition-droppable {
+        min-height: 84px;
+        transition: all 0.2s ease;
+      }
+      .definition-droppable.drop-target {
+        outline: 2px dashed rgba(250, 204, 21, 0.7);
+        outline-offset: 3px;
+        background: rgba(250, 204, 21, 0.08);
+      }
+      .match-badge {
+        background: linear-gradient(135deg, #34d399, #10b981);
+        color: #053d2f;
+      }
+      /* Confetti */
+      .confetti {
+        position: fixed;
+        top: -10px;
+        width: 8px;
+        height: 14px;
+        opacity: 0.9;
+        pointer-events: none;
+        z-index: 50;
+        border-radius: 2px;
+        transform: rotate(0deg);
+        animation: fall 1600ms linear forwards;
+      }
+      @keyframes fall {
+        to {
+          transform: translateY(110vh) rotate(360deg);
+          opacity: 1;
+        }
+      }
+      /* Pulse glow for correct match */
+      @keyframes glow {
+        0% {
+          box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
+        }
+        70% {
+          box-shadow: 0 0 0 14px rgba(34, 197, 94, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+        }
+      }
+      .glow-once {
+        animation: glow 850ms ease-out 1;
+      }
+
+      /* Tooltip style for hints */
+      .hint-tip {
+        background: rgba(15, 23, 42, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 14px;
+        line-height: 1.3;
+        max-width: 280px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      }
+    </style>
+  </head>
+  <body class="antialiased">
+    <main class="max-w-6xl mx-auto px-6 py-10">
+      <!-- Header -->
+      <header
+        class="flex flex-col md:flex-row md:items-end md:justify-between gap-6"
+      >
+        <div>
+          <h1
+            class="title-font text-3xl md:text-4xl font-extrabold tracking-tight"
+          >
+            Vocabulary Match
+            <span
+              class="ml-2 inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gradient-to-r from-cyan-400/20 to-fuchsia-400/20 border border-white/10"
+            >
+              Geometry Set
+            </span>
+          </h1>
+          <p class="text-slate-300 mt-2">
+            Connect each term to the correct definition. Use hints if you need a
+            nudge!
+          </p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button
+            id="btnShuffle"
+            class="btn px-4 py-2 rounded-xl bg-cyan-500/80 hover:bg-cyan-400 text-slate-900 font-semibold"
+          >
+            Shuffle
+          </button>
+          <button
+            id="btnHint"
+            class="btn px-4 py-2 rounded-xl bg-amber-300 hover:bg-amber-200 text-slate-900 font-semibold"
+          >
+            Hint
+          </button>
+          <button
+            id="btnReset"
+            class="btn px-4 py-2 rounded-xl bg-fuchsia-500/80 hover:bg-fuchsia-400 text-white font-semibold"
+          >
+            Reset
+          </button>
+        </div>
+      </header>
+
+      <!-- Stats / Progress -->
+      <section class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="glass rounded-2xl p-4 flex items-center justify-between">
+          <div>
+            <p class="text-slate-300 text-sm">Matches</p>
+            <p id="statMatches" class="title-font text-2xl font-bold">0 / 6</p>
+          </div>
+          <span
+            class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-400/20 text-emerald-300"
+            >✓</span
+          >
+        </div>
+        <div class="glass rounded-2xl p-4 flex items-center justify-between">
+          <div>
+            <p class="text-slate-300 text-sm">Attempts</p>
+            <p id="statAttempts" class="title-font text-2xl font-bold">0</p>
+          </div>
+          <span
+            class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-sky-400/20 text-sky-300"
+            >↺</span
+          >
+        </div>
+        <div class="glass rounded-2xl p-4 flex items-center justify-between">
+          <div>
+            <p class="text-slate-300 text-sm">Hints Used</p>
+            <p id="statHints" class="title-font text-2xl font-bold">0</p>
+          </div>
+          <span
+            class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-amber-300/20 text-amber-200"
+            >?</span
+          >
+        </div>
+        <div class="glass rounded-2xl p-4 flex items-center justify-between">
+          <div>
+            <p class="text-slate-300 text-sm">Streak</p>
+            <p id="statStreak" class="title-font text-2xl font-bold">0</p>
+          </div>
+          <span
+            class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-fuchsia-400/20 text-fuchsia-200"
+            >★</span
+          >
+        </div>
+      </section>
+
+      <!-- Game Board -->
+      <section class="mt-8 grid lg:grid-cols-2 gap-6">
+        <!-- Terms -->
+        <div class="card rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="title-font text-xl font-bold">Terms</h2>
+            <span class="text-slate-300 text-sm"
+              >Tap to select, then tap a matching definition</span
+            >
+          </div>
+          <div id="termsList" class="grid sm:grid-cols-2 gap-3">
+            <!-- Terms chips will render here -->
+          </div>
+        </div>
+
+        <!-- Definitions -->
+        <div class="card rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="title-font text-xl font-bold">Definitions</h2>
+            <span class="text-slate-300 text-sm">Drop or tap to pair</span>
+          </div>
+          <div id="defsList" class="grid gap-3">
+            <!-- Definition slots will render here -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Footer CTA -->
+      <footer
+        class="mt-10 glass rounded-2xl p-5 flex flex-col md:flex-row items-center justify-between gap-4"
+      >
+        <div class="flex items-center gap-3">
+          <div
+            class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-fuchsia-400 flex items-center justify-center text-slate-900 font-extrabold"
+          >
+            V
+          </div>
+          <p class="text-slate-200">
+            Drag-and-drop or tap-to-match. Celebrate each right answer!
+          </p>
+        </div>
+        <div class="flex items-center gap-2 text-sm text-slate-300">
+          <span
+            class="px-2 py-1 rounded-lg bg-emerald-400/15 text-emerald-200 border border-emerald-300/20"
+            >Correct = confetti</span
+          >
+          <span
+            class="px-2 py-1 rounded-lg bg-rose-400/15 text-rose-200 border border-rose-300/20"
+            >Incorrect = shake</span
+          >
+        </div>
+      </footer>
+    </main>
+
+    <!-- Hint Tooltip -->
+    <div id="hintTooltip" class="hint-tip hidden fixed z-40"></div>
+
+    <!-- Win Modal -->
+    <div
+      id="winModal"
+      class="hidden fixed inset-0 z-40 items-center justify-center"
+    >
+      <div class="absolute inset-0 bg-black/50"></div>
+      <div
+        class="relative glass rounded-2xl p-8 max-w-md w-[92%] mx-auto text-center"
+      >
+        <div
+          class="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-400 flex items-center justify-center text-slate-900 font-black text-3xl"
+        >
+          ✓
+        </div>
+        <h3 class="title-font text-2xl font-extrabold mt-4">Awesome job!</h3>
+        <p class="text-slate-300 mt-2">
+          You matched all terms correctly. Want to try a new shuffle or change
+          the set?
+        </p>
+        <div class="mt-6 grid grid-cols-2 gap-3">
+          <button
+            id="winShuffle"
+            class="btn px-4 py-2 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-900 font-semibold"
+          >
+            Shuffle & Replay
+          </button>
+          <button
+            id="winClose"
+            class="btn px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold border border-white/10"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Geometry sample data (6 terms)
+      const SAMPLE_SET = [
+        {
+          id: "term1",
+          term: "Acute Angle",
+          def: "An angle that measures less than 90°.",
+        },
+        {
+          id: "term2",
+          term: "Right Angle",
+          def: "An angle that measures exactly 90°.",
+        },
+        {
+          id: "term3",
+          term: "Obtuse Angle",
+          def: "An angle that measures more than 90° but less than 180°.",
+        },
+        {
+          id: "term4",
+          term: "Parallel Lines",
+          def: "Lines in a plane that never meet; they are always the same distance apart.",
+        },
+        {
+          id: "term5",
+          term: "Perpendicular Lines",
+          def: "Lines that intersect to form right angles.",
+        },
+        {
+          id: "term6",
+          term: "Radius",
+          def: "A line segment from the center of a circle to any point on the circle.",
+        },
+      ];
+
+      // State
+      let terms = [];
+      let defs = [];
+      let selectedTermId = null;
+      let matches = new Map(); // defSlotId -> termId
+      let correctCount = 0;
+      let attempts = 0;
+      let hintsUsed = 0;
+      let streak = 0;
+
+      // Elements
+      const termsList = document.getElementById("termsList");
+      const defsList = document.getElementById("defsList");
+      const statMatches = document.getElementById("statMatches");
+      const statAttempts = document.getElementById("statAttempts");
+      const statHints = document.getElementById("statHints");
+      const statStreak = document.getElementById("statStreak");
+      const btnShuffle = document.getElementById("btnShuffle");
+      const btnReset = document.getElementById("btnReset");
+      const btnHint = document.getElementById("btnHint");
+      const hintTooltip = document.getElementById("hintTooltip");
+      const winModal = document.getElementById("winModal");
+      const winClose = document.getElementById("winClose");
+      const winShuffle = document.getElementById("winShuffle");
+
+      // Utility
+      const shuffle = (arr) =>
+        arr
+          .map((v) => ({ v, s: Math.random() }))
+          .sort((a, b) => a.s - b.s)
+          .map(({ v }) => v);
+
+      function resetStats() {
+        correctCount = 0;
+        attempts = 0;
+        hintsUsed = 0;
+        streak = 0;
+        updateStats();
+      }
+
+      function updateStats() {
+        statMatches.textContent = `${correctCount} / ${SAMPLE_SET.length}`;
+        statAttempts.textContent = attempts;
+        statHints.textContent = hintsUsed;
+        statStreak.textContent = streak;
+      }
+
+      function createTermChip(item) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className =
+          "chip w-full text-left px-4 py-3 rounded-xl bg-gradient-to-br from-cyan-500/15 to-fuchsia-500/15 hover:from-cyan-500/25 hover:to-fuchsia-500/25";
+        b.innerHTML = `
+        <div class="flex items-center justify-between gap-3">
+          <span class="title-font font-semibold">${item.term}</span>
+          <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-white/10 text-white/80">T</span>
+        </div>
+      `;
+        b.dataset.termId = item.id;
+        b.draggable = true;
+
+        // tap select
+        b.addEventListener("click", () => {
+          if (b.classList.contains("correct")) return;
+          selectTerm(item.id);
+        });
+
+        // drag
+        b.addEventListener("dragstart", (e) => {
+          if (b.classList.contains("correct")) {
+            e.preventDefault();
+            return;
+          }
+          e.dataTransfer.setData("text/plain", item.id);
+          setTimeout(() => b.classList.add("opacity-60"), 0);
+          selectedTermId = item.id;
+        });
+        b.addEventListener("dragend", () => {
+          b.classList.remove("opacity-60");
+          selectedTermId = null;
+        });
+        return b;
+      }
+
+      function createDefSlot(item, index) {
+        const wrap = document.createElement("div");
+        wrap.className = "definition-droppable glass rounded-2xl p-4";
+        wrap.dataset.defId = item.id;
+
+        const content = document.createElement("div");
+        content.className = "flex items-start gap-3";
+        const badge = document.createElement("div");
+        badge.className =
+          "w-9 h-9 rounded-xl bg-gradient-to-br from-amber-300 to-yellow-300 text-slate-900 font-black flex items-center justify-center";
+        badge.textContent = index + 1;
+        const text = document.createElement("div");
+        text.innerHTML = `<p class="text-slate-100">${item.def}</p>`;
+        content.appendChild(badge);
+        content.appendChild(text);
+
+        const action = document.createElement("div");
+        action.className = "mt-3 flex items-center justify-between gap-3";
+        const slot = document.createElement("div");
+        slot.className =
+          "w-full min-h-[40px] rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-slate-200 flex items-center justify-between";
+        slot.innerHTML = `<span class="text-slate-400">Drop/Select a term…</span>`;
+        slot.dataset.slotFor = item.id;
+
+        const clearBtn = document.createElement("button");
+        clearBtn.type = "button";
+        clearBtn.className =
+          "btn px-3 py-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-white text-sm border border-white/10";
+        clearBtn.textContent = "Clear";
+
+        action.appendChild(slot);
+        action.appendChild(clearBtn);
+
+        // tap to match behavior
+        wrap.addEventListener("click", (e) => {
+          const withinAction =
+            e.target === clearBtn ||
+            e.target === slot ||
+            slot.contains(e.target);
+          if (!withinAction) return; // only tap on action area
+          if (e.target === clearBtn) {
+            removeMatch(item.id);
+            return;
+          }
+          if (selectedTermId) {
+            tryMatch(selectedTermId, item.id, slot, wrap);
+          } else {
+            // gently highlight slot if nothing selected
+            wrap.classList.add("drop-target");
+            setTimeout(() => wrap.classList.remove("drop-target"), 350);
+          }
+        });
+
+        // drag events
+        wrap.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          wrap.classList.add("drop-target");
+        });
+        wrap.addEventListener("dragleave", () =>
+          wrap.classList.remove("drop-target")
+        );
+        wrap.addEventListener("drop", (e) => {
+          e.preventDefault();
+          wrap.classList.remove("drop-target");
+          const incomingTermId = e.dataTransfer.getData("text/plain");
+          tryMatch(incomingTermId, item.id, slot, wrap);
+        });
+
+        wrap.appendChild(content);
+        wrap.appendChild(action);
+        return wrap;
+      }
+
+      function selectTerm(id) {
+        // toggle selection
+        const chips = [...termsList.querySelectorAll(".chip")];
+        const target = chips.find((c) => c.dataset.termId === id);
+        const isSelected = target?.classList.contains("selected");
+        chips.forEach((c) => c.classList.remove("selected"));
+        if (!isSelected) {
+          target?.classList.add("selected");
+          selectedTermId = id;
+        } else {
+          selectedTermId = null;
+        }
+      }
+
+      function findItemById(id) {
+        return SAMPLE_SET.find((x) => x.id === id);
+      }
+
+      function tryMatch(termId, defId, slotEl, wrapEl) {
+        if (!termId || !defId) return;
+        // If slot already has a match, clear it first
+        if (matches.has(defId)) removeMatch(defId);
+
+        attempts++;
+        const t = findItemById(termId);
+        const d = findItemById(defId);
+        const isCorrect = t && d && t.id === d.id;
+
+        if (isCorrect) {
+          matches.set(defId, termId);
+          correctCount++;
+          streak++;
+          renderSlotMatched(slotEl, t.term);
+          markTermCorrect(termId);
+          pulseWrap(wrapEl);
+          confettiBurst(36);
+          checkWin();
+        } else {
+          streak = 0;
+          flashWrong(wrapEl);
+          shake(slotEl);
+          // also visually indicate the term was off
+          const chip = [...termsList.querySelectorAll(".chip")].find(
+            (c) => c.dataset.termId === termId
+          );
+          if (chip) {
+            chip.classList.add("wrong");
+            setTimeout(() => chip.classList.remove("wrong"), 400);
+          }
+        }
+        updateStats();
+        clearSelection();
+      }
+
+      function renderSlotMatched(slotEl, termText) {
+        slotEl.innerHTML = `
+        <span class="match-badge inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm font-bold">
+          <span class="w-2 h-2 rounded-full bg-emerald-900/50"></span> ${termText}
+        </span>
+        <span class="text-emerald-300 text-sm">Matched!</span>
+      `;
+        slotEl.parentElement.parentElement.classList.add("glow-once");
+        setTimeout(
+          () =>
+            slotEl.parentElement.parentElement.classList.remove("glow-once"),
+          900
+        );
+      }
+
+      function markTermCorrect(termId) {
+        const chip = [...termsList.querySelectorAll(".chip")].find(
+          (c) => c.dataset.termId === termId
+        );
+        if (chip) {
+          chip.classList.add("correct");
+          chip.classList.remove("selected");
+          chip.draggable = false;
+        }
+      }
+
+      function removeMatch(defId) {
+        const prev = matches.get(defId);
+        if (!prev) return;
+        matches.delete(defId);
+        correctCount = Math.max(0, correctCount - 1);
+        streak = 0;
+        // reset slot UI
+        const slot = defsList.querySelector(`[data-slot-for="${defId}"]`);
+        if (slot)
+          slot.innerHTML = `<span class="text-slate-400">Drop/Select a term…</span>`;
+        // re-enable term chip
+        const chip = [...termsList.querySelectorAll(".chip")].find(
+          (c) => c.dataset.termId === prev
+        );
+        if (chip) {
+          chip.classList.remove("correct");
+          chip.draggable = true;
+        }
+        updateStats();
+      }
+
+      function clearSelection() {
+        selectedTermId = null;
+        [...termsList.querySelectorAll(".chip")].forEach((c) =>
+          c.classList.remove("selected")
+        );
+      }
+
+      function pulseWrap(el) {
+        el.classList.add("ring-2", "ring-emerald-400/60");
+        setTimeout(
+          () => el.classList.remove("ring-2", "ring-emerald-400/60"),
+          600
+        );
+      }
+
+      function flashWrong(el) {
+        el.classList.add("ring-2", "ring-rose-400/60");
+        setTimeout(
+          () => el.classList.remove("ring-2", "ring-rose-400/60"),
+          400
+        );
+      }
+
+      function shake(el) {
+        el.style.transform = "translateX(0)";
+        el.animate(
+          [
+            { transform: "translateX(0)" },
+            { transform: "translateX(-6px)" },
+            { transform: "translateX(6px)" },
+            { transform: "translateX(-4px)" },
+            { transform: "translateX(4px)" },
+            { transform: "translateX(0)" },
+          ],
+          { duration: 260, easing: "ease-in-out" }
+        );
+      }
+
+      function confettiBurst(count = 24) {
+        const colors = [
+          "#34d399",
+          "#22d3ee",
+          "#a78bfa",
+          "#f472b6",
+          "#fde047",
+          "#60a5fa",
+        ];
+        const leftRight = Math.random() < 0.5 ? "left" : "right";
+        for (let i = 0; i < count; i++) {
+          const piece = document.createElement("div");
+          piece.className = "confetti";
+          piece.style[leftRight] = `${Math.random() * 50 + 10}%`;
+          piece.style.background = colors[i % colors.length];
+          piece.style.transform = `rotate(${Math.random() * 360}deg)`;
+          piece.style.animationDuration = `${1200 + Math.random() * 700}ms`;
+          piece.style.width = `${6 + Math.random() * 4}px`;
+          piece.style.height = `${10 + Math.random() * 8}px`;
+          document.body.appendChild(piece);
+          setTimeout(() => piece.remove(), 1700);
+        }
+      }
+
+      function showHint() {
+        hintsUsed++;
+        updateStats();
+        // Strategy: highlight a definition that is still empty and glow the correct term
+        const emptyDef = SAMPLE_SET.map((x) => x.id).find(
+          (id) => !matches.has(id)
+        );
+        if (!emptyDef) return;
+
+        const correctTermId = emptyDef;
+        const wrap = [...defsList.children].find(
+          (w) => w.dataset.defId === emptyDef
+        );
+        const chip = [...termsList.querySelectorAll(".chip")].find(
+          (c) =>
+            c.dataset.termId === correctTermId &&
+            !c.classList.contains("correct")
+        );
+
+        // Tooltip near the definition card
+        if (wrap) {
+          const rect = wrap.getBoundingClientRect();
+          hintTooltip.textContent = "Try pairing this one next!";
+          hintTooltip.style.left = `${rect.left + rect.width - 260}px`;
+          hintTooltip.style.top = `${rect.top + window.scrollY - 10}px`;
+          hintTooltip.classList.remove("hidden");
+          wrap.classList.add("drop-target");
+          setTimeout(() => {
+            hintTooltip.classList.add("hidden");
+            wrap.classList.remove("drop-target");
+          }, 1400);
+        }
+        // Soft glow on the correct term
+        if (chip) {
+          chip.classList.add("selected");
+          setTimeout(() => chip.classList.remove("selected"), 1100);
+        }
+      }
+
+      function checkWin() {
+        if (correctCount >= SAMPLE_SET.length) {
+          setTimeout(() => {
+            winModal.classList.remove("hidden");
+            winModal.classList.add("flex");
+            confettiBurst(80);
+          }, 350);
+        }
+      }
+
+      function closeWin() {
+        winModal.classList.add("hidden");
+        winModal.classList.remove("flex");
+      }
+
+      function buildBoard() {
+        // Prepare shuffled copies for layout
+        terms = shuffle([...SAMPLE_SET]);
+        defs = shuffle([...SAMPLE_SET]);
+        matches.clear();
+        selectedTermId = null;
+
+        // Render terms
+        termsList.innerHTML = "";
+        terms.forEach((item) => termsList.appendChild(createTermChip(item)));
+
+        // Render definitions
+        defsList.innerHTML = "";
+        defs.forEach((item, idx) =>
+          defsList.appendChild(createDefSlot(item, idx))
+        );
+      }
+
+      function softReset() {
+        resetStats();
+        buildBoard();
+      }
+
+      // Controls
+      btnShuffle.addEventListener("click", () => {
+        buildBoard();
+        clearSelection();
+        // keep stats
+      });
+
+      btnReset.addEventListener("click", () => {
+        softReset();
+      });
+
+      btnHint.addEventListener("click", () => {
+        showHint();
+      });
+
+      winClose.addEventListener("click", () => closeWin());
+      winShuffle.addEventListener("click", () => {
+        closeWin();
+        buildBoard();
+        resetStats();
+      });
+
+      // Init
+      (function init() {
+        buildBoard();
+        resetStats();
+      })();
+    </script>
+    <script>
+      (function () {
+        function c() {
+          var b = a.contentDocument || a.contentWindow.document;
+          if (b) {
+            var d = b.createElement("script");
+            d.innerHTML =
+              "window.__CF$cv$params={r:'96f62e5667cd55fe',t:'MTc1NTIzNDU3OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";
+            b.getElementsByTagName("head")[0].appendChild(d);
+          }
+        }
+        if (document.body) {
+          var a = document.createElement("iframe");
+          a.height = 1;
+          a.width = 1;
+          a.style.position = "absolute";
+          a.style.top = 0;
+          a.style.left = 0;
+          a.style.border = "none";
+          a.style.visibility = "hidden";
+          document.body.appendChild(a);
+          if ("loading" !== document.readyState) c();
+          else if (window.addEventListener)
+            document.addEventListener("DOMContentLoaded", c);
+          else {
+            var e = document.onreadystatechange || function () {};
+            document.onreadystatechange = function (b) {
+              e(b);
+              "loading" !== document.readyState &&
+                ((document.onreadystatechange = e), c());
+            };
+          }
+        }
+      })();
+    </script>
+  </body>
+</html>
